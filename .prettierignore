@@ -1,0 +1,16 @@
+package-lock.json
+requirements.lock
+.venv
+out
+node_modules
+frontend/public/pdfjs
+test-results
+test-results-packaged
+playwright-report
+*.py
+*.toml
+*.ini
+*.ps1
+.local
+dist
+licenses

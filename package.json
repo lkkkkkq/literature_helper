@@ -1,0 +1,54 @@
+{
+  "name": "litextract-v2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local evidence-driven literature workbench",
+  "type": "module",
+  "main": "out/main/index.js",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:e2e": "npm run build && playwright test",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "predev": "node scripts/copy-pdf-assets.mjs",
+    "prebuild": "node scripts/copy-pdf-assets.mjs"
+  },
+  "dependencies": {
+    "@tanstack/vue-query": "5.104.1",
+    "@tanstack/vue-table": "8.21.3",
+    "dompurify": "3.4.16",
+    "markdown-it": "15.0.2",
+    "pdfjs-dist": "6.4.299",
+    "vue": "3.5.43"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.0",
+    "@types/markdown-it": "14.2.0",
+    "@types/node": "26.6.4",
+    "@vitejs/plugin-vue": "6.0.9",
+    "@vue/test-utils": "2.5.1",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "eslint": "10.12.0",
+    "eslint-plugin-vue": "10.11.1",
+    "globals": "17.13.0",
+    "jsdom": "29.1.1",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "7.3.7",
+    "vitest": "5.0.3",
+    "vue-tsc": "3.3.12"
+  }
+}

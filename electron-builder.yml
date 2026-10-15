@@ -1,0 +1,32 @@
+appId: org.litextract.desktop.v2
+productName: LitExtract v2
+electronDist: node_modules/electron/dist
+directories:
+  output: dist
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: .local/release/engine
+    to: engine
+  - from: .local/release/models
+    to: models
+  - from: .local/release/notices
+    to: notices
+  - from: .local/release/runtime.json
+    to: runtime.json
+asar: true
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  runAfterFinish: false
+  deleteAppDataOnUninstall: false
+  artifactName: LitExtract-v2-${version}-Beta-Setup.${ext}
