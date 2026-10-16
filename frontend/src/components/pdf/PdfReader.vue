@@ -16,7 +16,8 @@ GlobalWorkerOptions.workerSrc = workerUrl
 const props = defineProps<{ data: Uint8Array; location?: SourceLocation; quote?: string }>()
 const pageNumber = ref(1)
 const pages = ref(0)
-const zoom = ref(1)
+const zoom = ref(0)
+const scroller = ref<HTMLDivElement>()
 const loading = ref(true)
 const error = ref('')
 const holder = ref<HTMLDivElement>()
@@ -47,7 +48,11 @@ async function renderPage() {
   try {
     const page = await document.getPage(pageNumber.value)
     if (ticket !== generation || disposed) return
-    const viewport = page.getViewport({ scale: zoom.value })
+    const natural = page.getViewport({ scale: 1 })
+    const scale =
+      zoom.value ||
+      Math.max(0.2, ((scroller.value?.clientWidth ?? natural.width) - 28) / natural.width)
+    const viewport = page.getViewport({ scale })
     const ratio = Math.min(window.devicePixelRatio || 1, 2)
     const canvas = window.document.createElement('canvas')
     canvas.width = Math.ceil(viewport.width * ratio)
@@ -65,8 +70,8 @@ async function renderPage() {
     if (ticket !== generation || disposed) return
     const text = window.document.createElement('div')
     text.className = 'textLayer'
-    text.style.setProperty('--scale-factor', String(zoom.value))
-    text.style.setProperty('--total-scale-factor', String(zoom.value))
+    text.style.setProperty('--scale-factor', String(scale))
+    text.style.setProperty('--total-scale-factor', String(scale))
     textLayer = new TextLayer({
       textContentSource: await page.getTextContent(),
       container: text,
@@ -145,8 +150,15 @@ watch(
     else navigate(value.page)
   },
 )
-onMounted(load)
+function resize() {
+  if (zoom.value === 0) void renderPage()
+}
+onMounted(() => {
+  window.addEventListener('resize', resize)
+  void load()
+})
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', resize)
   disposed = true
   generation++
   renderTask?.cancel()
@@ -177,6 +189,7 @@ onBeforeUnmount(() => {
         下一页
       </button>
       <select v-model.number="zoom" aria-label="PDF 缩放">
+        <option :value="0">适应宽度</option>
         <option :value="0.75">75%</option>
         <option :value="1">100%</option>
         <option :value="1.25">125%</option>
@@ -185,7 +198,7 @@ onBeforeUnmount(() => {
     </div>
     <p v-if="error" role="alert" class="error-box">PDF 无法显示：{{ error }}</p>
     <p v-if="loading" class="muted" role="status">正在渲染原文页面…</p>
-    <div class="pdf-scroll">
+    <div ref="scroller" class="pdf-scroll">
       <div class="pdf-page-wrap">
         <div ref="holder" class="pdf-page"></div>
         <div

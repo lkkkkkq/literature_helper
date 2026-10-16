@@ -5,11 +5,12 @@ import type { Conversation, Note, Project } from '../../../../desktop/src/shared
 import { readableError, request } from '../../api/workspace'
 import QuestionPanel from './QuestionPanel.vue'
 import ExtractionPanel from '../jobs/ExtractionPanel.vue'
+import { useDraft } from './drafts'
 
 const props = defineProps<{ project: Project; session: Conversation }>()
 defineEmits<{ rename: []; remove: [] }>()
 const client = useQueryClient()
-const content = ref('')
+const content = useDraft(props.project.id, props.session.id, 'note')
 const intent = ref<{ goal: string; document_ids: string[] }>()
 const error = ref('')
 const key = ['messages', props.project.id, props.session.id]

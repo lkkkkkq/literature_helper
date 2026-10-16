@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
 test('QA uses encrypted credentials and persists source citations', async () => {
-  test.setTimeout(process.env.LITEXTRACT_TEST_EXECUTABLE ? 240000 : 150000)
+  test.setTimeout(240000)
   const temporary = await mkdtemp(join(tmpdir(), 'litextract-chat-'))
   const source = join(temporary, 'source')
   execFileSync(resolve('.venv/Scripts/python.exe'), ['scripts/create_reading_fixtures.py', source])
@@ -37,7 +37,7 @@ test('QA uses encrypted credentials and persists source citations', async () => 
                 content: JSON.stringify({
                   parts: [
                     {
-                      text: '**研究结果**：Alpha 站点浓度为 12.5 mg/L。',
+                      text: String.raw`**研究结果**：Alpha 站点浓度为 12.5 mg/L。公式排版示例：$f_d(u)\approx\frac{1}{2}\rho C_d A u_0^2$。`,
                       kind: 'claim',
                       evidence_ids: [evidence.id],
                     },
@@ -115,7 +115,7 @@ test('QA uses encrypted credentials and persists source citations', async () => 
               ).status,
             project,
           ),
-        { timeout: process.env.LITEXTRACT_TEST_EXECUTABLE ? 120000 : 60000 },
+        { timeout: 120000 },
       )
       .toBe('ready')
     await page.reload()
@@ -142,7 +142,12 @@ test('QA uses encrypted credentials and persists source citations', async () => 
     await page.getByRole('button', { name: '发送问题', exact: true }).click()
     await expect(page.locator('.markdown-answer')).toHaveCount(2)
     await expect(page.locator('.qa-history')).toContainText('12.5 mg/L')
+    await expect(page.locator('.qa-history .katex')).toBeVisible()
     await page.locator('.citation').click()
+    await expect(page.getByRole('complementary', { name: '原文证据侧栏' })).toBeVisible()
+    const answerBounds = await page.locator('.qa-conversation').boundingBox()
+    const evidenceBounds = await page.locator('.evidence-sidebar').boundingBox()
+    expect(evidenceBounds!.x).toBeGreaterThanOrEqual(answerBounds!.x + answerBounds!.width)
     await expect(page.getByLabel('PDF 页码', { exact: true })).toHaveValue('2')
     await expect(page.getByTestId('evidence-bbox')).toBeVisible()
     await page.screenshot({ path: 'test-results/stage3-qa.png', fullPage: true })

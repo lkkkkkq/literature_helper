@@ -11,7 +11,9 @@ SYSTEM = """你是证据驱动的文献阅读助手。正常回答用户的研�
 输出 JSON：{"parts":[{"text":"Markdown 段落", "evidence_ids":["E1"], "kind":"claim"}]}。
 每个事实结论独立一段，claim 必须有支持该结论的 evidence_ids。无资料或资料不足的说明
 使用 kind=uncertainty、evidence_ids=[]，明确无法判断。不可编造引用或页码。
-保持中文正常叙述；引用使用独立数组，不在正文虚构链接。"""
+保持中文正常叙述；引用使用独立数组，不在正文虚构链接。
+数学公式使用 LaTeX：行内用 $...$，独立公式用 $$...$$；正确使用分数、上下标和希腊字母。
+JSON 中的 LaTeX 反斜线必须正确转义。不得为美化排版改变原文公式或补造公式。"""
 
 
 def answer(model, profile, key, question, sources, history):

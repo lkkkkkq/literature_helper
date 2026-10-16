@@ -11,14 +11,15 @@ import type {
 import { readableError, request } from '../../api/workspace'
 import ResultsPanel from './ResultsPanel.vue'
 import PluginPanel from './PluginPanel.vue'
+import { useDraft } from '../chat/drafts'
 const props = defineProps<{
   projectId: string
   sessionId: string
   intent?: { goal: string; document_ids: string[] }
 }>()
 const client = useQueryClient()
-const goal = ref('')
-const selectedDocument = ref('')
+const goal = useDraft(props.projectId, props.sessionId, 'goal')
+const selectedDocument = useDraft(props.projectId, props.sessionId, 'goal-scope')
 const error = ref('')
 const busy = ref(false)
 const selectedPlan = ref('')

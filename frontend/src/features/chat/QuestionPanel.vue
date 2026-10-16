@@ -6,11 +6,12 @@ import { readableError, request } from '../../api/workspace'
 import ModelSettings from './ModelSettings.vue'
 import MarkdownAnswer from './MarkdownAnswer.vue'
 import EvidenceView from './EvidenceView.vue'
+import { useDraft } from './drafts'
 const props = defineProps<{ projectId: string; sessionId: string }>()
 const emit = defineEmits<{ design: [intent: { goal: string; document_ids: string[] }] }>()
 const client = useQueryClient()
-const question = ref('')
-const selected = ref('')
+const question = useDraft(props.projectId, props.sessionId, 'question')
+const selected = useDraft(props.projectId, props.sessionId, 'question-scope')
 const busy = ref(false)
 const error = ref('')
 const evidence = ref<Evidence>()
@@ -64,72 +65,78 @@ async function ask() {
 }
 </script>
 <template>
-  <ModelSettings :project-id="projectId" />
-  <div class="qa-history">
-    <p v-if="history.isError.value" role="alert" class="error-box">
-      {{ readableError(history.error.value) }}
-    </p>
-    <article v-for="run in history.data.value ?? []" :key="run.id" class="qa-turn">
-      <h3>{{ run.question }}</h3>
-      <p v-if="run.status === 'running'" role="status">正在检索原文并生成回答…</p>
-      <p v-if="run.error" role="alert" class="error-box">{{ run.error }}</p>
-      <template v-if="run.answer">
-        <section v-for="(part, index) in run.answer.parts" :key="index" class="answer-part">
-          <MarkdownAnswer :text="part.text" />
-          <button
-            v-for="source in run.answer.evidence.filter((item) =>
-              part.evidence_ids.includes(item.id),
-            )"
-            :key="source.id"
-            class="citation"
-            @click="evidence = source"
-          >
-            [{{ source.id }}] {{ source.filename
-            }}{{ source.locations[0] ? ` · 第 ${source.locations[0].page} 页` : ' · 附件原文' }}
-          </button>
-        </section>
-        <details>
-          <summary>回答范围与提示</summary>
-          <p v-for="warning in run.answer.warnings" :key="warning">{{ warning }}</p>
-        </details>
-      </template>
-    </article>
-  </div>
-  <form class="question-form" @submit.prevent="ask">
-    <label>
-      回答范围
-      <select v-model="selected" :disabled="busy">
-        <option value="">当前项目已解析的文献与附件</option>
-        <option v-for="doc in documents.data.value ?? []" :key="doc.id" :value="doc.id">
-          {{ doc.title }}
-        </option>
-      </select>
-    </label>
-    <label>
-      文献问题
-      <textarea
-        v-model="question"
-        rows="3"
-        maxlength="10000"
-        :disabled="busy"
-        placeholder="请说明研究问题、方法、结果和局限"
+  <div class="qa-layout" :class="{ 'has-evidence': evidence }">
+    <div class="qa-conversation">
+      <ModelSettings :project-id="projectId" />
+      <div class="qa-history">
+        <p v-if="history.isError.value" role="alert" class="error-box">
+          {{ readableError(history.error.value) }}
+        </p>
+        <article v-for="run in history.data.value ?? []" :key="run.id" class="qa-turn">
+          <h3>{{ run.question }}</h3>
+          <p v-if="run.status === 'running'" role="status">正在检索原文并生成回答…</p>
+          <p v-if="run.error" role="alert" class="error-box">{{ run.error }}</p>
+          <template v-if="run.answer">
+            <section v-for="(part, index) in run.answer.parts" :key="index" class="answer-part">
+              <MarkdownAnswer :text="part.text" />
+              <button
+                v-for="source in run.answer.evidence.filter((item) =>
+                  part.evidence_ids.includes(item.id),
+                )"
+                :key="source.id"
+                class="citation"
+                @click="evidence = source"
+              >
+                [{{ source.id }}] {{ source.filename
+                }}{{ source.locations[0] ? ` · 第 ${source.locations[0].page} 页` : ' · 附件原文' }}
+              </button>
+            </section>
+            <details>
+              <summary>回答范围与提示</summary>
+              <p v-for="warning in run.answer.warnings" :key="warning">{{ warning }}</p>
+            </details>
+          </template>
+        </article>
+      </div>
+      <form class="question-form" @submit.prevent="ask">
+        <label>
+          回答范围
+          <select v-model="selected" :disabled="busy">
+            <option value="">当前项目已解析的文献与附件</option>
+            <option v-for="doc in documents.data.value ?? []" :key="doc.id" :value="doc.id">
+              {{ doc.title }}
+            </option>
+          </select>
+        </label>
+        <label>
+          文献问题
+          <textarea
+            v-model="question"
+            rows="3"
+            maxlength="10000"
+            :disabled="busy"
+            placeholder="请说明研究问题、方法、结果和局限"
+          />
+        </label>
+        <p v-if="error" role="alert" class="error-box">{{ error }}</p>
+        <button
+          class="primary"
+          :disabled="
+            busy || !question.trim() || history.data.value?.some((row) => row.status === 'running')
+          "
+        >
+          {{ busy ? '正在回答…' : '发送问题' }}
+        </button>
+      </form>
+    </div>
+    <aside v-if="evidence" class="evidence-sidebar" aria-label="原文证据侧栏">
+      <EvidenceView
+        v-if="evidence"
+        :key="`${evidence.asset_id}:${evidence.id}`"
+        :project-id="projectId"
+        :evidence="evidence"
+        @close="evidence = undefined"
       />
-    </label>
-    <p v-if="error" role="alert" class="error-box">{{ error }}</p>
-    <button
-      class="primary"
-      :disabled="
-        busy || !question.trim() || history.data.value?.some((row) => row.status === 'running')
-      "
-    >
-      {{ busy ? '正在回答…' : '发送问题' }}
-    </button>
-  </form>
-  <EvidenceView
-    v-if="evidence"
-    :key="`${evidence.asset_id}:${evidence.id}`"
-    :project-id="projectId"
-    :evidence="evidence"
-    @close="evidence = undefined"
-  />
+    </aside>
+  </div>
 </template>

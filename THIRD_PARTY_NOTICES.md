@@ -577,6 +577,8 @@ Python license metadata may use a full notice rather than an SPDX identifier; on
 | json-stringify-safe                      | 5.0.1         | ISC                     | git://github.com/isaacs/json-stringify-safe                           | Package integration; unmodified |
 | json5                                    | 2.2.3         | MIT                     | git+https://github.com/json5/json5.git                                | Package integration; unmodified |
 | jsonfile                                 | 6.2.1         | MIT                     | git@github.com:jprichardson/node-jsonfile.git                         | Package integration; unmodified |
+| katex                                    | 0.19.0        | MIT                     | https://github.com/KaTeX/KaTeX.git                                    | Package integration; unmodified |
+| commander                                | 15.0.0        | MIT                     | git+https://github.com/tj/commander.js.git                            | Package integration; unmodified |
 | keyv                                     | 5.6.0         | MIT                     | git+https://github.com/jaredwray/keyv.git                             | Package integration; unmodified |
 | lazy-val                                 | 1.0.5         | MIT                     | develar/lazy-val                                                      | Package integration; unmodified |
 | levn                                     | 0.4.1         | MIT                     | git://github.com/gkz/levn.git                                         | Package integration; unmodified |

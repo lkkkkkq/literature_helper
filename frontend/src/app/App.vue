@@ -8,6 +8,7 @@ import FirstRunGuide from './FirstRunGuide.vue'
 import ProjectTree from '../features/projects/ProjectTree.vue'
 import ProjectWorkspace from '../features/projects/ProjectWorkspace.vue'
 import SessionWorkspace from '../features/chat/SessionWorkspace.vue'
+import { clearDrafts } from '../features/chat/drafts'
 
 const client = useQueryClient()
 const projects = useQuery({
@@ -101,6 +102,7 @@ async function submit() {
       await client.invalidateQueries({ queryKey: ['projects'] })
     } else if (dialog.mode === 'deleteProject') {
       await request({ action: 'deleteProject', projectId })
+      clearDrafts(projectId)
       if (selectedProject.value === projectId) select('', '')
       await client.cancelQueries({ predicate: (query) => query.queryKey.includes(projectId) })
       client.removeQueries({ predicate: (query) => query.queryKey.includes(projectId) })
@@ -124,6 +126,7 @@ async function submit() {
     } else if (dialog.mode === 'deleteSession') {
       await request({ action: 'deleteSession', projectId, sessionId: dialog.session!.id })
       if (selectedSession.value === dialog.session!.id) select(projectId, '')
+      clearDrafts(projectId, dialog.session!.id)
       await client.cancelQueries({ queryKey: ['messages', projectId, dialog.session!.id] })
       client.removeQueries({ queryKey: ['messages', projectId, dialog.session!.id] })
       await client.invalidateQueries({ queryKey: ['sessions', projectId] })

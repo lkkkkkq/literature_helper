@@ -898,3 +898,78 @@ select:disabled {
   margin-top: 6px;
   color: #385b65;
 }
+
+/* Keep conclusions and their source visible together. */
+main:has(.has-evidence) {
+  max-width: none;
+}
+.qa-layout {
+  min-width: 0;
+}
+.qa-layout.has-evidence {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(360px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.qa-conversation {
+  min-width: 0;
+}
+.evidence-sidebar {
+  position: sticky;
+  top: 16px;
+  height: calc(100vh - 32px);
+  overflow: auto;
+  min-width: 0;
+  overscroll-behavior: contain;
+}
+.evidence-sidebar .evidence-detail {
+  margin: 0;
+  padding: 16px;
+}
+.evidence-sidebar h2 {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.evidence-sidebar .section-heading {
+  align-items: flex-start;
+}
+.evidence-sidebar blockquote {
+  max-height: 160px;
+  overflow: auto;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.evidence-sidebar .pdf-toolbar {
+  flex-wrap: wrap;
+}
+.markdown-answer .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 0;
+}
+@media (max-width: 1050px) {
+  .qa-layout.has-evidence {
+    grid-template-columns: minmax(240px, 1fr) minmax(300px, 1fr);
+    gap: 12px;
+  }
+  main:has(.has-evidence) {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+@media (max-width: 760px) {
+  .qa-layout.has-evidence {
+    display: block;
+  }
+  .evidence-sidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: min(92vw, 600px);
+    height: 100vh;
+    z-index: 30;
+    background: white;
+    box-shadow: -8px 0 32px #0003;
+  }
+}
