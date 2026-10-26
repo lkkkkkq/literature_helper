@@ -74,6 +74,24 @@ export interface ScanDraft {
 }
 export type ConfirmGroup = Pick<ScanGroup, 'title' | 'main_path' | 'asset_paths'>
 export type WorkspaceRequest =
+  | {
+      action: 'fullDocument'
+      projectId: string
+      assetId: string
+      operation:
+        | 'status'
+        | 'start'
+        | 'cancel'
+        | 'content'
+        | 'resource'
+        | 'correct'
+        | 'charts'
+        | 'save_chart'
+        | 'fulltext'
+        | 'prefer_source'
+      version?: string
+      payload?: Record<string, unknown>
+    }
   | { action: 'plugins'; projectId: string }
   | { action: 'togglePlugin'; projectId: string; pluginId: string; enabled: boolean }
   | { action: 'template'; projectId: string; sessionId: string; plugin_id: string }
@@ -97,7 +115,14 @@ export type WorkspaceRequest =
     }
   | { action: 'route'; projectId: string; text: string }
   | { action: 'plans' | 'jobs'; projectId: string; sessionId: string }
-  | { action: 'design'; projectId: string; sessionId: string; goal: string; document_ids: string[] }
+  | {
+      action: 'design'
+      projectId: string
+      sessionId: string
+      goal: string
+      document_ids: string[]
+      fulltext_batch?: number
+    }
   | {
       action: 'confirmPlan'
       projectId: string
@@ -115,6 +140,7 @@ export type WorkspaceRequest =
       projectId: string
       sessionId: string
       question: string
+      fulltext_batch?: number
       document_ids: string[]
       request_id: string
     }
@@ -190,6 +216,8 @@ export interface Evidence {
   quote: string
   locations: SourceLocation[]
   kind: string
+  parse_version?: string | null
+  source_position?: Record<string, unknown>[]
 }
 export interface ChatRun {
   id: string

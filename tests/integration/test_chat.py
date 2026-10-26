@@ -54,6 +54,36 @@ def question():
     }
 
 
+def test_new_fulltext_requires_explicit_batch_and_records_coverage(chat):
+    from pathlib import Path
+    from uuid import uuid4
+
+    from backend.parsing_next.bundle import Bundle, write_json
+
+    client, path, model, project_path, file = chat
+    project_id = project_path.split("/")[-1]
+    document = client.get(project_path + "/documents").json()[0]
+    asset = document["assets"][0]
+    service = client.app.state.full_document
+    folder = service.folder(project_id, asset["id"])
+    version = str(uuid4())
+    bundle = Bundle(folder / version, Path(file), version)
+    bundle.add("Full text passage " * 4000, locations=[{"page": 1}])
+    bundle.add("Final section must not disappear", locations=[{"page": 2}])
+    bundle.finish(engine="constructed", source_sha256=asset["sha256"])
+    write_json(folder / "active.json", {"version": version, "source_sha256": asset["sha256"]})
+    response = client.post(path, json=question(), headers={"X-Model-Key": "test-only"})
+    assert response.status_code == 400
+    assert "批" in response.json()["detail"]
+    assert model.calls == []
+    body = {**question(), "fulltext_batch": 2}
+    response = client.post(path, json=body, headers={"X-Model-Key": "test-only"})
+    assert response.status_code == 200, response.text
+    assert response.json()["answer"]["coverage"]["batch"] == 2
+    assert "Final section" in model.calls[-1]["sources"][-1]["quote"]
+    assert model.calls[-1]["sources"][-1]["parse_version"] == version
+
+
 def test_qa_citations_history_scope_and_idempotency(chat):
     client, path, model, project_path, file = chat
     body = question()

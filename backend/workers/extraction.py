@@ -66,6 +66,10 @@ def run_job(
                 ]:
                     raise DomainError("文献索引已变化，不能沿用已确认的任务，请新建方案。")
                 for asset in current["assets"]:
+                    from backend.parsing_next.context import active_sources
+
+                    if active_sources(reading, project_id, document_id, asset) is not None:
+                        continue
                     if asset["kind"] not in {"pdf", "csv", "xlsx", "docx"}:
                         continue
                     if reading.status(project_id, asset["id"])["status"] != "ready":

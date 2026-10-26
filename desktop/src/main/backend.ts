@@ -35,7 +35,23 @@ export class BackendProcess {
         ...process.env,
         PYTHONUNBUFFERED: '1',
         PYTHONUTF8: '1',
-        ...(app.isPackaged ? { LITEXTRACT_MODEL_DIR: join(process.resourcesPath, 'models') } : {}),
+        ...(app.isPackaged
+          ? {
+              LITEXTRACT_MODEL_DIR: join(process.resourcesPath, 'models'),
+              LITEXTRACT_MINERU_PYTHON: join(process.resourcesPath, 'engine-next', 'python.exe'),
+              LITEXTRACT_PANDOC: join(
+                process.resourcesPath,
+                'engine-next',
+                'Lib',
+                'site-packages',
+                'pypandoc',
+                'files',
+                'pandoc.exe',
+              ),
+              LITEXTRACT_PARSER_MODELS: join(process.resourcesPath, 'parser-models'),
+              MINERU_HOME: join(this.dataDir, 'parser-runtime'),
+            }
+          : {}),
         LITEXTRACT_API_TOKEN: this.token,
         LITEXTRACT_DATA_DIR: this.dataDir,
       },

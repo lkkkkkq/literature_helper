@@ -45,6 +45,7 @@ class DesignRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     goal: str = Field(min_length=1, max_length=10000)
     document_ids: list[UUID] = Field(default_factory=list, max_length=1000)
+    fulltext_batch: int | None = Field(default=None, ge=1)
 
 
 class ConfirmPlan(BaseModel):

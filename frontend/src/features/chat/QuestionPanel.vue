@@ -13,6 +13,7 @@ const client = useQueryClient()
 const question = useDraft(props.projectId, props.sessionId, 'question')
 const selected = useDraft(props.projectId, props.sessionId, 'question-scope')
 const busy = ref(false)
+const fulltextBatch = ref<number>()
 const error = ref('')
 const evidence = ref<Evidence>()
 const layout = ref<HTMLElement>()
@@ -114,6 +115,7 @@ async function ask() {
       projectId: props.projectId,
       sessionId: props.sessionId,
       question: question.value,
+      fulltext_batch: typeof fulltextBatch.value === 'number' ? fulltextBatch.value : undefined,
       document_ids: selected.value ? [selected.value] : [],
       request_id: crypto.randomUUID(),
     })
@@ -167,6 +169,16 @@ async function ask() {
         </article>
       </div>
       <form class="question-form" @submit.prevent="ask">
+        <details>
+          <summary>新版全文分批</summary>
+          <p>
+            已生成新版全文的文献不经检索裁剪。超预算时会提示总批数；每次仅发送指定批次，不自动循环调用。
+          </p>
+          <label>
+            全文批次（正常留空）
+            <input v-model.number="fulltextBatch" type="number" min="1" />
+          </label>
+        </details>
         <label>
           回答范围
           <select v-model="selected" :disabled="busy">

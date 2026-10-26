@@ -30,6 +30,7 @@ class Question(BaseModel):
     request_id: UUID
     question: str = Field(min_length=1, max_length=10000)
     document_ids: list[UUID] = Field(default_factory=list, max_length=100)
+    fulltext_batch: int | None = Field(default=None, ge=1)
 
 
 class Evidence(BaseModel):
@@ -42,6 +43,8 @@ class Evidence(BaseModel):
     quote: str
     locations: list[SourceLocation] = Field(default_factory=list)
     kind: str = "text"
+    parse_version: str | None = None
+    source_position: list[dict] = Field(default_factory=list)
 
 
 class AnswerPart(BaseModel):

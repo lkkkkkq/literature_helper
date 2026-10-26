@@ -43,16 +43,35 @@ class JobService:
         sources, _ = self.chat.sources(project_id, selected)
         pins = self.plugins.pins(project_id) if self.plugins else []
         context = self.plugins.catalog.context(pins) if self.plugins else []
+        fulltext = any(source.parse_version for source in sources)
+        goal = body.goal
+        if fulltext:
+            from backend.parsing_next.context import evidence_batches
+
+            batches = evidence_batches(sources)
+            if len(batches) > 1 and body.fulltext_batch is None:
+                raise DomainError(
+                    f"完整来源共 {len(batches)} 批；请指定方案参考批次。未自动调用模型。"
+                )
+            selected_batch = body.fulltext_batch or 1
+            if selected_batch > len(batches):
+                raise DomainError(f"方案参考批次超出范围，共 {len(batches)} 批。")
+            sources = batches[selected_batch - 1]
+            if len(batches) > 1:
+                goal += (
+                    f"\n[方案参考来源仅第 {selected_batch}/{len(batches)} 批；"
+                    "执行提取仍覆盖全部来源。]"
+                )
         plan = design.design(
             self.chat.model,
             profile,
             key,
-            body.goal,
-            retrieve(body.goal, sources, budget=16000),
+            goal,
+            sources if fulltext else retrieve(body.goal, sources, budget=16000),
             context,
         )
         plan.plugins = pins
-        return self.repository.draft(project_id, session_id, body.goal, plan, selected)
+        return self.repository.draft(project_id, session_id, goal, plan, selected)
 
     def template(self, project_id, session_id, plugin_id):
         self.chat.repository.history(project_id, session_id)

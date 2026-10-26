@@ -7,6 +7,10 @@ files:
   - out/**/*
   - package.json
 extraResources:
+  - from: .local/release/engine-next
+    to: engine-next
+  - from: .local/release/parser-models
+    to: parser-models
   - from: .local/release/engine
     to: engine
   - from: .local/release/models
@@ -19,7 +23,7 @@ asar: true
 npmRebuild: false
 win:
   target:
-    - target: nsis
+    - target: nsis-web
       arch: [x64]
   signAndEditExecutable: false
 nsis:
@@ -30,3 +34,13 @@ nsis:
   runAfterFinish: false
   deleteAppDataOnUninstall: false
   artifactName: LitExtract-v2-${version}-Beta-Setup.${ext}
+nsisWeb:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  runAfterFinish: false
+  deleteAppDataOnUninstall: false
+  include: build/offline-only.nsh
+  appPackageUrl: file:///litextract-offline-package-required
+  artifactName: LitExtract-v2-${version}-Beta-Offline-Setup.${ext}

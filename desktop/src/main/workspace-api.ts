@@ -24,6 +24,31 @@ export function workspaceRoute(request: WorkspaceRequest): {
   if (!('projectId' in request)) throw new Error('不支持的操作')
   const base = `/api/projects/${id(request.projectId)}`
   switch (request.action) {
+    case 'fullDocument':
+      if (
+        ![
+          'status',
+          'start',
+          'cancel',
+          'content',
+          'resource',
+          'correct',
+          'charts',
+          'save_chart',
+          'fulltext',
+          'prefer_source',
+        ].includes(request.operation)
+      )
+        throw new Error('不支持的全文操作')
+      return {
+        path: `${base}/assets/${id(request.assetId)}/full-document`,
+        method: 'POST',
+        body: {
+          operation: request.operation,
+          version: request.version ?? '',
+          payload: request.payload ?? {},
+        },
+      }
     case 'route':
       return { path: `${base}/route`, method: 'POST', body: { text: request.text } }
     case 'plans':
@@ -32,7 +57,11 @@ export function workspaceRoute(request: WorkspaceRequest): {
       return {
         path: `${base}/sessions/${id(request.sessionId)}/plans`,
         method: 'POST',
-        body: { goal: request.goal, document_ids: request.document_ids },
+        body: {
+          goal: request.goal,
+          document_ids: request.document_ids,
+          fulltext_batch: request.fulltext_batch,
+        },
       }
     case 'confirmPlan':
       return {
@@ -106,6 +135,7 @@ export function workspaceRoute(request: WorkspaceRequest): {
         method: 'POST',
         body: {
           question: request.question,
+          fulltext_batch: request.fulltext_batch,
           document_ids: request.document_ids,
           request_id: request.request_id,
         },

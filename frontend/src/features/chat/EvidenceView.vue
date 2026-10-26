@@ -14,6 +14,18 @@ const verified = useQuery({
     props.evidence.source_sha256,
   ]),
   queryFn: async () => {
+    if (props.evidence.parse_version) {
+      const content = await request<{ sources: { source_sha256: string } }>({
+        action: 'fullDocument',
+        projectId: props.projectId,
+        assetId: props.evidence.asset_id,
+        operation: 'content',
+        version: props.evidence.parse_version,
+      })
+      if (content.sources.source_sha256 !== props.evidence.source_sha256)
+        throw new Error('此引用的解析版本与原文摘要不一致。')
+      return true
+    }
     const content = await request<ParsedContent>({
       action: 'parsedContent',
       projectId: props.projectId,

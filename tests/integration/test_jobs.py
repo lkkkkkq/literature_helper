@@ -13,6 +13,32 @@ def plan():
     }
 
 
+def test_fulltext_plan_design_requires_explicit_batch(chat):  # noqa: F811
+    from pathlib import Path
+
+    from backend.parsing_next.bundle import Bundle, write_json
+
+    client, answer_path, model, project_path, file = chat
+    project_id = project_path.split("/")[-1]
+    asset = client.get(project_path + "/documents").json()[0]["assets"][0]
+    folder = client.app.state.full_document.folder(project_id, asset["id"])
+    bundle = Bundle(folder / "fixture", Path(file), "fixture")
+    bundle.add("source " * 10000)
+    bundle.finish(engine="fixture", source_sha256=asset["sha256"])
+    write_json(folder / "active.json", {"version": "fixture", "source_sha256": asset["sha256"]})
+    calls = []
+    model.complete = lambda *args: calls.append(args) or plan()
+    path = answer_path.removesuffix("/answers") + "/plans"
+    body = {"goal": "提取站点", "document_ids": []}
+    assert client.post(path, json=body, headers={"X-Model-Key": "test"}).status_code == 400
+    assert not calls
+    response = client.post(
+        path, json={**body, "fulltext_batch": 2}, headers={"X-Model-Key": "test"}
+    )
+    assert response.status_code == 200, response.text
+    assert "2/2" in response.json()["goal"] and len(calls) == 1
+
+
 def test_confirm_versions_scope_cancel_recovery_and_events(chat):  # noqa: F811
     client, answer_path, model, project_path, file = chat
     jobs_service = client.app.state.jobs

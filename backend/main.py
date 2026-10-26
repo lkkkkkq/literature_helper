@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from backend.api.chat import router as chat_router
+from backend.api.full_document import router as full_document_router
 from backend.api.health import router
 from backend.api.jobs import router as jobs_router
 from backend.api.plugins import router as plugins_router
@@ -17,6 +18,7 @@ from backend.core.config import Settings
 from backend.core.errors import DomainError
 from backend.db.database import create_database
 from backend.parsers.docling_adapter import DoclingAdapter
+from backend.parsing_next.service import FullDocumentService
 from backend.plugins.manager import PluginCatalog
 from backend.repositories.chat import ChatRepository
 from backend.repositories.health import HealthRepository
@@ -53,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.chat = ChatService(
             ChatRepository(engine), WorkspaceRepository(engine), app.state.reading
         )
+        app.state.full_document = FullDocumentService(app.state.reading, settings.data_dir)
         app.state.jobs = JobService(JobRepository(engine), app.state.chat, settings.data_dir)
         app.state.plugins = PluginService(PluginRepository(engine), PluginCatalog())
         app.state.jobs.plugins = app.state.plugins
@@ -60,6 +63,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
+            app.state.full_document.close()
             app.state.jobs.close()
             app.state.reading.close()
             engine.dispose()
@@ -84,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(router)
     app.include_router(workspace_router)
     app.include_router(reading_router)
+    app.include_router(full_document_router)
     app.include_router(chat_router)
     app.include_router(jobs_router)
     app.include_router(reviews_router)

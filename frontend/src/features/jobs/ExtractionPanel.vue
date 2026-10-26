@@ -19,6 +19,7 @@ const props = defineProps<{
 }>()
 const client = useQueryClient()
 const goal = useDraft(props.projectId, props.sessionId, 'goal')
+const fulltextBatch = ref<number>()
 const selectedDocument = useDraft(props.projectId, props.sessionId, 'goal-scope')
 const error = ref('')
 const busy = ref(false)
@@ -85,6 +86,7 @@ async function generate(ids?: string[]) {
       projectId: props.projectId,
       sessionId: props.sessionId,
       goal: goal.value,
+      fulltext_batch: typeof fulltextBatch.value === 'number' ? fulltextBatch.value : undefined,
       document_ids: ids ?? (selectedDocument.value ? [selectedDocument.value] : []),
     })
     await client.invalidateQueries({ queryKey: plansKey })
@@ -224,6 +226,14 @@ onBeforeUnmount(() => unsubscribe?.())
           placeholder="例如：按采样站点整理浓度、单位和采样时间，每个站点一行"
         />
       </label>
+      <details>
+        <summary>超长全文：指定方案参考批次</summary>
+        <label>
+          参考第几批
+          <input v-model.number="fulltextBatch" type="number" min="1" />
+        </label>
+        <p>仅在提示超出预算后填写。方案参考所选批次，执行提取仍按全部来源分批。</p>
+      </details>
       <button :disabled="busy || !goal.trim()">{{ busy ? '正在处理…' : '生成提取方案' }}</button>
     </form>
     <p v-if="error" role="alert" class="error-box">{{ error }}</p>

@@ -10,6 +10,7 @@ import type {
 } from '../../../../desktop/src/shared/contracts'
 import { readableError, request } from '../../api/workspace'
 import PdfReader from '../../components/pdf/PdfReader.vue'
+import FullDocumentPanel from './FullDocumentPanel.vue'
 
 const props = defineProps<{ projectId: string; document: Document }>()
 defineEmits<{ close: [] }>()
@@ -23,6 +24,10 @@ const asset = computed(() => props.document.assets.find((item) => item.id === se
 const isPdf = computed(() => asset.value?.kind === 'pdf')
 const supported = computed(() => ['pdf', 'csv', 'xlsx', 'docx'].includes(asset.value?.kind ?? ''))
 const ocr = ref(false)
+const newReady = ref(false)
+watch(selected, () => {
+  newReady.value = false
+})
 const location = ref<SourceLocation>()
 const quote = ref('')
 const selectedBlock = ref('')
@@ -175,113 +180,125 @@ watch(selected, () => {
     <p v-if="parseStatus.data.value?.error" role="alert" class="error-box">
       {{ parseStatus.data.value.error }}
     </p>
-    <div class="reader-panels" :class="{ 'with-pdf': isPdf }">
-      <div class="parsed-panel">
-        <div class="section-heading">
-          <h2>正文与表格</h2>
-          <span v-if="content.data.value" class="muted">
-            {{ content.data.value.blocks.length }} 个内容块
-          </span>
-        </div>
-        <p v-if="content.isError.value" role="alert" class="error-box">
-          {{ readableError(content.error.value) }}
-        </p>
-        <p v-if="parseStatus.data.value?.status === 'unparsed'" class="empty-state">
-          点击“解析文档”读取正文、章节和表格。PDF 原文可直接在右侧阅读。
-        </p>
-        <template v-if="content.data.value && parseStatus.data.value?.status === 'ready'">
-          <details v-if="content.data.value.warnings.length" class="parse-notices">
-            <summary>阅读提示（{{ content.data.value.warnings.length }}）</summary>
-            <p v-for="warning in content.data.value.warnings" :key="warning">{{ warning }}</p>
-          </details>
-          <div class="content-filters">
-            <input v-model="filter" aria-label="搜索正文和表格" placeholder="搜索正文和表格…" />
-            <select v-model="tab" aria-label="内容类型">
-              <option value="all">全部内容</option>
-              <option value="table">只看表格</option>
-            </select>
+    <FullDocumentPanel
+      v-if="asset"
+      :key="selected"
+      :project-id="projectId"
+      :asset-id="selected"
+      :pdf-data="isPdf ? pdf.data.value : undefined"
+      @locate="location = $event"
+      @active="newReady = $event"
+    />
+    <details :open="!newReady">
+      <summary v-if="newReady">展开旧版解析与核对</summary>
+      <div class="reader-panels" :class="{ 'with-pdf': isPdf }">
+        <div class="parsed-panel">
+          <div class="section-heading">
+            <h2>正文与表格</h2>
+            <span v-if="content.data.value" class="muted">
+              {{ content.data.value.blocks.length }} 个内容块
+            </span>
           </div>
-          <select
-            v-if="headings.length"
-            aria-label="跳转章节"
-            @change="goSection(($event.target as HTMLSelectElement).value)"
-          >
-            <option value="">跳转到章节…</option>
-            <option v-for="heading in headings" :key="heading.id" :value="heading.id">
-              {{ heading.text }}
-            </option>
-          </select>
-          <div class="parsed-blocks">
-            <p v-if="!blocks.length" class="muted">没有匹配的内容。</p>
-            <article
-              v-for="block in blocks"
-              :id="`block-${block.id}`"
-              :key="block.id"
-              class="content-block"
-              :class="{ active: selectedBlock === block.id }"
+          <p v-if="content.isError.value" role="alert" class="error-box">
+            {{ readableError(content.error.value) }}
+          </p>
+          <p v-if="parseStatus.data.value?.status === 'unparsed'" class="empty-state">
+            点击“解析文档”读取正文、章节和表格。PDF 原文可直接在右侧阅读。
+          </p>
+          <template v-if="content.data.value && parseStatus.data.value?.status === 'ready'">
+            <details v-if="content.data.value.warnings.length" class="parse-notices">
+              <summary>阅读提示（{{ content.data.value.warnings.length }}）</summary>
+              <p v-for="warning in content.data.value.warnings" :key="warning">{{ warning }}</p>
+            </details>
+            <div class="content-filters">
+              <input v-model="filter" aria-label="搜索正文和表格" placeholder="搜索正文和表格…" />
+              <select v-model="tab" aria-label="内容类型">
+                <option value="all">全部内容</option>
+                <option value="table">只看表格</option>
+              </select>
+            </div>
+            <select
+              v-if="headings.length"
+              aria-label="跳转章节"
+              @change="goSection(($event.target as HTMLSelectElement).value)"
             >
-              <div class="block-meta">
-                <span>
-                  {{
-                    block.kind === 'table'
-                      ? '表格'
-                      : block.kind === 'heading'
-                        ? '章节'
-                        : block.kind === 'picture'
-                          ? '图示说明'
-                          : '原文'
-                  }}
-                </span>
-                <button
-                  v-for="(position, index) in block.locations"
-                  :key="index"
-                  class="source-link"
-                  @click="focusBlock(block, position)"
-                >
-                  第 {{ position.page }} 页 · 定位原文
-                </button>
-                <span v-if="!block.locations.length" class="muted">无 PDF 页码</span>
-              </div>
-              <h3 v-if="block.kind === 'heading'">{{ block.text }}</h3>
-              <p v-else-if="block.text">{{ block.text }}</p>
-              <div v-if="block.kind === 'table'" class="parsed-table-scroll">
-                <table>
-                  <tbody>
-                    <tr v-for="row in block.rows" :key="row">
-                      <component
-                        :is="cell.header ? 'th' : 'td'"
-                        v-for="(cell, cellIndex) in block.cells
-                          .filter((cell) => cell.row === row - 1)
-                          .sort((a, b) => a.column - b.column)"
-                        :key="cellIndex"
-                        :rowspan="cell.row_span"
-                        :colspan="cell.column_span"
-                      >
-                        {{ cell.text }}
-                      </component>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </article>
-          </div>
-          <p class="milestone-note">解析结果仅用于阅读与定位；表格和文字仍需结合原文复核。</p>
-        </template>
+              <option value="">跳转到章节…</option>
+              <option v-for="heading in headings" :key="heading.id" :value="heading.id">
+                {{ heading.text }}
+              </option>
+            </select>
+            <div class="parsed-blocks">
+              <p v-if="!blocks.length" class="muted">没有匹配的内容。</p>
+              <article
+                v-for="block in blocks"
+                :id="`block-${block.id}`"
+                :key="block.id"
+                class="content-block"
+                :class="{ active: selectedBlock === block.id }"
+              >
+                <div class="block-meta">
+                  <span>
+                    {{
+                      block.kind === 'table'
+                        ? '表格'
+                        : block.kind === 'heading'
+                          ? '章节'
+                          : block.kind === 'picture'
+                            ? '图示说明'
+                            : '原文'
+                    }}
+                  </span>
+                  <button
+                    v-for="(position, index) in block.locations"
+                    :key="index"
+                    class="source-link"
+                    @click="focusBlock(block, position)"
+                  >
+                    第 {{ position.page }} 页 · 定位原文
+                  </button>
+                  <span v-if="!block.locations.length" class="muted">无 PDF 页码</span>
+                </div>
+                <h3 v-if="block.kind === 'heading'">{{ block.text }}</h3>
+                <p v-else-if="block.text">{{ block.text }}</p>
+                <div v-if="block.kind === 'table'" class="parsed-table-scroll">
+                  <table>
+                    <tbody>
+                      <tr v-for="row in block.rows" :key="row">
+                        <component
+                          :is="cell.header ? 'th' : 'td'"
+                          v-for="(cell, cellIndex) in block.cells
+                            .filter((cell) => cell.row === row - 1)
+                            .sort((a, b) => a.column - b.column)"
+                          :key="cellIndex"
+                          :rowspan="cell.row_span"
+                          :colspan="cell.column_span"
+                        >
+                          {{ cell.text }}
+                        </component>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+            <p class="milestone-note">解析结果仅用于阅读与定位；表格和文字仍需结合原文复核。</p>
+          </template>
+        </div>
+        <div v-if="isPdf" class="original-panel">
+          <h2>PDF 原文</h2>
+          <p v-if="pdf.isPending.value">正在读取 PDF…</p>
+          <p v-if="pdf.isError.value" role="alert" class="error-box">
+            {{ readableError(pdf.error.value) }}
+          </p>
+          <PdfReader
+            v-if="pdf.data.value && !pdf.isError.value"
+            :key="`${selected}:${asset?.sha256}`"
+            :data="pdf.data.value"
+            :location="location"
+            :quote="quote"
+          />
+        </div>
       </div>
-      <div v-if="isPdf" class="original-panel">
-        <h2>PDF 原文</h2>
-        <p v-if="pdf.isPending.value">正在读取 PDF…</p>
-        <p v-if="pdf.isError.value" role="alert" class="error-box">
-          {{ readableError(pdf.error.value) }}
-        </p>
-        <PdfReader
-          v-if="pdf.data.value && !pdf.isError.value"
-          :key="`${selected}:${asset?.sha256}`"
-          :data="pdf.data.value"
-          :location="location"
-          :quote="quote"
-        />
-      </div>
-    </div>
+    </details>
   </section>
 </template>

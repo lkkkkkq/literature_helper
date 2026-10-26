@@ -14,3 +14,7 @@ playwright-report
 .local
 dist
 licenses
+# User-authored handoff documents: preserve their original formatting.
+PARSER_START_HERE.md
+PARSER_V2_IMPLEMENTATION.md
+PARSER_RESEARCH_2026-10-26.md

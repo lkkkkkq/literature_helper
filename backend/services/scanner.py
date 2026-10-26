@@ -23,6 +23,8 @@ SUPPORTED = {
     ".tiff",
     ".txt",
     ".zip",
+    ".tex",
+    ".md",
 }
 SUPPLEMENT = re.compile(
     r"(?:^|[\W_])(supp(?:lement(?:ary|al)?)?|supporting|si|esm|s\d+)(?:$|[\W_])"
