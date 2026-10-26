@@ -139,7 +139,12 @@ test('QA uses encrypted credentials and persists source citations', async () => 
     page = await app.firstWindow()
     await page.getByRole('button', { name: '◌ 研究问题', exact: true }).click()
     await page.getByLabel('文献问题', { exact: true }).fill('请说明研究问题、方法、结果和局限')
-    await page.getByRole('button', { name: '发送问题', exact: true }).click()
+    const composer = page.getByLabel('文献问题', { exact: true })
+    await composer.press('Shift+Enter')
+    await expect(composer).toHaveValue('请说明研究问题、方法、结果和局限\n')
+    await composer.dispatchEvent('keydown', { key: 'Enter', isComposing: true })
+    await expect(page.locator('.markdown-answer')).toHaveCount(0)
+    await composer.press('Enter')
     await expect(page.locator('.markdown-answer')).toHaveCount(2)
     await expect(page.locator('.qa-history')).toContainText('12.5 mg/L')
     await expect(page.locator('.qa-history .katex')).toBeVisible()
@@ -150,6 +155,29 @@ test('QA uses encrypted credentials and persists source citations', async () => 
     expect(evidenceBounds!.x).toBeGreaterThanOrEqual(answerBounds!.x + answerBounds!.width)
     await expect(page.getByLabel('PDF 页码', { exact: true })).toHaveValue('2')
     await expect(page.getByTestId('evidence-bbox')).toBeVisible()
+    await expect(page.getByLabel('PDF 缩放')).toHaveValue('-1')
+    const divider = page.getByRole('separator', { name: '调整证据侧栏宽度' })
+    const before = await page.locator('.evidence-sidebar').boundingBox()
+    const handle = await divider.boundingBox()
+    await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + 50)
+    await page.mouse.down()
+    await page.mouse.move(handle!.x - 60, handle!.y + 50)
+    await page.mouse.up()
+    await expect
+      .poll(async () => (await page.locator('.evidence-sidebar').boundingBox())!.width)
+      .toBeGreaterThan(before!.width)
+    await expect
+      .poll(async () => {
+        const canvas = await page.locator('.pdf-page canvas').boundingBox()
+        const viewport = await page.locator('.pdf-scroll').boundingBox()
+        return (
+          !!canvas &&
+          !!viewport &&
+          canvas.height <= viewport.height &&
+          canvas.width <= viewport.width
+        )
+      })
+      .toBe(true)
     await page.screenshot({ path: 'test-results/stage3-qa.png', fullPage: true })
     expect(
       (await readFile(join(temporary, 'data', 'workspace.db'))).includes(Buffer.from(secret)),

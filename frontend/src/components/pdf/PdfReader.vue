@@ -16,7 +16,7 @@ GlobalWorkerOptions.workerSrc = workerUrl
 const props = defineProps<{ data: Uint8Array; location?: SourceLocation; quote?: string }>()
 const pageNumber = ref(1)
 const pages = ref(0)
-const zoom = ref(0)
+const zoom = ref(-1)
 const scroller = ref<HTMLDivElement>()
 const loading = ref(true)
 const error = ref('')
@@ -49,9 +49,12 @@ async function renderPage() {
     const page = await document.getPage(pageNumber.value)
     if (ticket !== generation || disposed) return
     const natural = page.getViewport({ scale: 1 })
-    const scale =
-      zoom.value ||
-      Math.max(0.2, ((scroller.value?.clientWidth ?? natural.width) - 28) / natural.width)
+    const widthScale = Math.max(
+      0.1,
+      ((scroller.value?.clientWidth ?? natural.width) - 28) / natural.width,
+    )
+    const heightScale = Math.max(0.1, ((scroller.value?.clientHeight || 720) - 28) / natural.height)
+    const scale = zoom.value === -1 ? Math.min(widthScale, heightScale) : zoom.value || widthScale
     const viewport = page.getViewport({ scale })
     const ratio = Math.min(window.devicePixelRatio || 1, 2)
     const canvas = window.document.createElement('canvas')
@@ -150,15 +153,25 @@ watch(
     else navigate(value.page)
   },
 )
+let resizeTimer: ReturnType<typeof setTimeout> | undefined
+let observer: ResizeObserver | undefined
 function resize() {
-  if (zoom.value === 0) void renderPage()
+  clearTimeout(resizeTimer)
+  if (zoom.value <= 0)
+    resizeTimer = setTimeout(() => {
+      void renderPage()
+    }, 120)
 }
 onMounted(() => {
   window.addEventListener('resize', resize)
+  observer = new ResizeObserver(resize)
+  if (scroller.value) observer.observe(scroller.value)
   void load()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resize)
+  observer?.disconnect()
+  clearTimeout(resizeTimer)
   disposed = true
   generation++
   renderTask?.cancel()
@@ -189,6 +202,7 @@ onBeforeUnmount(() => {
         下一页
       </button>
       <select v-model.number="zoom" aria-label="PDF 缩放">
+        <option :value="-1">适应整页</option>
         <option :value="0">适应宽度</option>
         <option :value="0.75">75%</option>
         <option :value="1">100%</option>

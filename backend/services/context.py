@@ -20,6 +20,9 @@ class DocumentContext:
                     warnings.append(f"{asset['relative_path']} 尚未完成有效解析，未参与回答。")
                     continue
                 content = self.reading.content(project_id, asset["id"])
+                warnings.extend(
+                    f"{asset['relative_path']}: {warning}" for warning in content.warnings
+                )
                 for block in content.blocks:
                     text = block.text
                     if block.cells:

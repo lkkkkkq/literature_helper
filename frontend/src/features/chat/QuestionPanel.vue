@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { ChatRun, Document, Evidence } from '../../../../desktop/src/shared/contracts'
 import { readableError, request } from '../../api/workspace'
@@ -15,6 +15,68 @@ const selected = useDraft(props.projectId, props.sessionId, 'question-scope')
 const busy = ref(false)
 const error = ref('')
 const evidence = ref<Evidence>()
+const layout = ref<HTMLElement>()
+const sidebarWidth = ref(50)
+const sidebar = ref<HTMLElement>()
+const sidebarHeight = ref('calc(100vh - 220px)')
+function fitSidebar() {
+  if (!sidebar.value) return
+  sidebarHeight.value = `${Math.max(300, window.innerHeight - Math.max(16, sidebar.value.getBoundingClientRect().top) - 16)}px`
+}
+watch(evidence, async () => {
+  await nextTick()
+  fitSidebar()
+})
+onMounted(() => {
+  window.addEventListener('scroll', fitSidebar, { passive: true })
+  window.addEventListener('resize', fitSidebar)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', fitSidebar)
+  window.removeEventListener('resize', fitSidebar)
+})
+const canSend = computed(
+  () =>
+    !busy.value &&
+    !!question.value.trim() &&
+    !history.data.value?.some((row) => row.status === 'running'),
+)
+function questionKeydown(event: KeyboardEvent) {
+  if (
+    event.key !== 'Enter' ||
+    event.shiftKey ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.metaKey ||
+    event.isComposing ||
+    event.keyCode === 229
+  )
+    return
+  event.preventDefault()
+  if (!event.repeat && canSend.value) void ask()
+}
+function resizeSidebar(event: PointerEvent) {
+  if (!(event.currentTarget instanceof HTMLElement)) return
+  event.currentTarget.setPointerCapture(event.pointerId)
+}
+function moveSidebar(event: PointerEvent) {
+  const handle = event.currentTarget as HTMLElement
+  if (!handle.hasPointerCapture(event.pointerId) || !layout.value) return
+  const box = layout.value.getBoundingClientRect()
+  sidebarWidth.value = Math.max(30, Math.min(65, ((box.right - event.clientX) / box.width) * 100))
+}
+function stopResize(event: PointerEvent) {
+  const handle = event.currentTarget as HTMLElement
+  if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId)
+}
+function resizeKey(event: KeyboardEvent) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home'].includes(event.key)) return
+  event.preventDefault()
+  sidebarWidth.value =
+    event.key === 'Home'
+      ? 50
+      : Math.max(30, Math.min(65, sidebarWidth.value + (event.key === 'ArrowLeft' ? 2 : -2)))
+}
 const key = ['answers', props.projectId, props.sessionId]
 const history = useQuery({
   queryKey: key,
@@ -33,6 +95,7 @@ const documents = useQuery({
   queryFn: () => request<Document[]>({ action: 'documents', projectId: props.projectId }),
 })
 async function ask() {
+  if (!canSend.value) return
   busy.value = true
   error.value = ''
   try {
@@ -65,7 +128,12 @@ async function ask() {
 }
 </script>
 <template>
-  <div class="qa-layout" :class="{ 'has-evidence': evidence }">
+  <div
+    ref="layout"
+    class="qa-layout"
+    :class="{ 'has-evidence': evidence }"
+    :style="{ '--evidence-width': `${sidebarWidth}%`, '--evidence-height': sidebarHeight }"
+  >
     <div class="qa-conversation">
       <ModelSettings :project-id="projectId" />
       <div class="qa-history">
@@ -115,7 +183,8 @@ async function ask() {
             rows="3"
             maxlength="10000"
             :disabled="busy"
-            placeholder="请说明研究问题、方法、结果和局限"
+            placeholder="请说明研究问题、方法、结果和局限（Enter 发送，Shift+Enter 换行）"
+            @keydown="questionKeydown"
           />
         </label>
         <p v-if="error" role="alert" class="error-box">{{ error }}</p>
@@ -129,7 +198,23 @@ async function ask() {
         </button>
       </form>
     </div>
-    <aside v-if="evidence" class="evidence-sidebar" aria-label="原文证据侧栏">
+    <div
+      v-if="evidence"
+      class="evidence-divider"
+      role="separator"
+      tabindex="0"
+      aria-label="调整证据侧栏宽度"
+      aria-orientation="vertical"
+      :aria-valuenow="Math.round(sidebarWidth)"
+      :aria-valuemin="30"
+      :aria-valuemax="65"
+      @pointerdown="resizeSidebar"
+      @pointermove="moveSidebar"
+      @pointerup="stopResize"
+      @pointercancel="stopResize"
+      @keydown="resizeKey"
+    />
+    <aside v-if="evidence" ref="sidebar" class="evidence-sidebar" aria-label="原文证据侧栏">
       <EvidenceView
         v-if="evidence"
         :key="`${evidence.asset_id}:${evidence.id}`"

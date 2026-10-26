@@ -38,7 +38,7 @@ class DoclingAdapter:
 
     @property
     def version(self):
-        return f"{version('docling')}/litextract-2-pdfium"
+        return f"{version('docling')}/litextract-3-pdfium-text"
 
     def _converter(self, ocr):
         from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
@@ -139,6 +139,13 @@ class DoclingAdapter:
                 ]
             blocks.append(block)
         warnings = []
+        if is_pdf:
+            from backend.parsers.pdf_text import NOTICE, supplement_pdf_text
+
+            additions = supplement_pdf_text(data, blocks)
+            blocks.extend(additions)
+            if additions:
+                warnings.append(NOTICE)
         if status == "partial_success":
             warnings.append("部分内容未能解析完整，请结合原文复核。")
         if not blocks:

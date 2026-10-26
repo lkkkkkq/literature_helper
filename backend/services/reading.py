@@ -117,7 +117,8 @@ class ReadingService:
         state = self.repository.status(project_id, asset_id)
         if state["status"] != "ready" or not state.get("result_path"):
             raise DomainError("当前文件没有可用的解析内容，请完成解析后再查看。", "conflict")
-        self._read_source(self.repository.asset(project_id, asset_id))
+        asset = self.repository.asset(project_id, asset_id)
+        source_data = self._read_source(asset)
         path = (self.data_dir / state["result_path"]).resolve()
         if not path.is_relative_to(self.data_dir):
             raise DomainError("解析缓存路径无效，请重新解析。")
@@ -125,6 +126,12 @@ class ReadingService:
             content = ParsedContent.model_validate_json(path.read_text(encoding="utf-8"))
             if content.asset_id != asset_id or content.source_sha256 != state["source_sha256"]:
                 raise ValueError("Cache does not match source")
+            if asset["kind"] == "pdf" and content.parser_version.endswith("/litextract-2-pdfium"):
+                from backend.parsers.pdf_text import NOTICE, supplement_pdf_text
+
+                content.blocks.extend(supplement_pdf_text(source_data, content.blocks))
+                if NOTICE not in content.warnings:
+                    content.warnings.append(NOTICE)
             return content
         except (OSError, ValueError, json.JSONDecodeError) as error:
             raise DomainError("解析缓存不可用，请点击重新解析。") from error
